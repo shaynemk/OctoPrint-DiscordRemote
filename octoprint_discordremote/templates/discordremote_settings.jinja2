@@ -158,7 +158,7 @@
                               data-bind="value: $parent.settings.plugins.discordremote.events[$data].message"></textarea>
                 </div>
             </div>
-            <div class="control-group">
+            <div class="control-group" data-bind="ifnot: $parent.settings.plugins.discordremote.events[$data].name = 'Timelapse Completed'">
                 <label class="control-label">{{ _("Include snapshot") }}</label>
                 <div class="controls">
                     <input type="checkbox"
@@ -192,6 +192,11 @@
                     <input type="number" min="1" step="1"
                            data-bind="value: $parent.settings.plugins.discordremote.events[$data].period"/>s
                 </div>
+            </div>
+            <!-- Special Case for Timelapse Completed -->
+            <div class="control-group" data-bind="if: $parent.settings.plugins.discordremote.events[$data].name = 'Timelapse Completed'">
+                <small>{{ _("Address defaults to Internal IP, and will change to the hostname if the setting 'Only use Hostname' is enabled.") }}
+            </small>
             </div>
         </div>
     </form>
