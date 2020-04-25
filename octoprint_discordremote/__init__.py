@@ -134,6 +134,7 @@ class DiscordRemotePlugin(octoprint.plugin.EventHandlerPlugin,
                 "enabled": False,
                 "with_snapshot": False,
                 "use_external": False,
+                "timelapse_complete": 3, # arbitrary value as this is just for the KO template to work.
                 "message": "🎬 Timelapse finished: {movie_basename}. Size: {filesize}. ({how_to_access})"
             },
             "test": {  # Not a real message, but we will treat it as one
