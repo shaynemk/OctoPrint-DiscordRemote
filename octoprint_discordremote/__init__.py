@@ -24,6 +24,7 @@ from threading import Thread, Event
 from octoprint_discordremote.libs import ipgetter
 from octoprint_discordremote.command import Command
 from octoprint_discordremote.embedbuilder import info_embed
+from octoprint_discordremote.embedbuilder import DISCORD_MAX_FILE_SIZE
 from .discord import Discord
 
 
@@ -128,6 +129,13 @@ class DiscordRemotePlugin(octoprint.plugin.EventHandlerPlugin,
                 "message": "📢 Printing is at {progress}%",
                 "period": 300
             },
+            "timelapse_complete": {
+                "name": "Timelapse Completed",
+                "enabled": False,
+                "with_snapshot": False,
+                "use_external": False,
+                "message": "🎬 Timelapse finished: {movie_basename}. Size: {filesize}. ({how_to_access})"
+            },
             "test": {  # Not a real message, but we will treat it as one
                 "enabled": True,
                 "with_snapshot": True,
@@ -197,6 +205,9 @@ class DiscordRemotePlugin(octoprint.plugin.EventHandlerPlugin,
             'prefix': "/",
             'show_local_ip': True,
             'show_external_ip': True,
+            'use_hostname': False,
+            'hostname': "YOUR.HOST.NAME",
+            'use_hostname_only': False,
             'events': self.events,
             'permissions': self.permissions,
             'allow_scripts': False,
@@ -217,6 +228,9 @@ class DiscordRemotePlugin(octoprint.plugin.EventHandlerPlugin,
                            ['prefix'],
                            ["show_local_ip"],
                            ["show_external_ip"],
+                           ["use_hostname"],
+                           ["hostname"],
+                           ["use_hostname_only"],
                            ['script_before'],
                            ['script_after'],
                            ['allowed_gcode']])
@@ -368,11 +382,17 @@ class DiscordRemotePlugin(octoprint.plugin.EventHandlerPlugin,
             self._logger.debug("Event {} is not enabled. Returning gracefully".format(event_id))
             return False
 
-        # Store IP address for message
+        # Store IP/time info for message
         data['ipaddr'] = self.get_ip_address()
         data['externaddr'] = self.get_external_ip_address()
         data['timeremaining'] = self.get_print_time_remaining()
         data['timespent'] = self.get_print_time_spent()
+
+        # Convert IP -> Hostname if desired
+        if self.get_settings().get(['use_hostname'], merged=True):
+            data['externaddr'] = self.get_settings().get(['hostname'], merged=True)
+            if self.get_settings().get(['use_hostname_only'], merged=True):
+                data['ipaddr'] = self.get_settings().get(['hostname'], merged=True)
 
         # Special case for progress eventID : we check for progress and steps
         if event_id == 'printing_progress':
@@ -405,7 +425,18 @@ class DiscordRemotePlugin(octoprint.plugin.EventHandlerPlugin,
 
             self.last_progress_message = datetime.now()
 
+        # Notify on timelapse completions
+        if event_id == 'MovieDone':
+            data["filesize"] = self.get_file_size(data["movie"])
+            if data["filesize"] >= DISCORD_MAX_FILE_SIZE:
+                data["how_to_access"] = "File too large for Discord; download directly from: " + "http://{ipaddr}/download/" + data["movie_basename"]
+            else:
+                data["how_to_access"] = "Use '/gettimelapse " + data["movie_basename"] + "' to post it to the channel."
+
         return self.send_message(event_id, tmp_config["message"].format(**data), tmp_config["with_snapshot"])
+
+    def get_file_size(file):
+        return os.path.get_file_size(file)
 
     @staticmethod
     def get_ip_address():
